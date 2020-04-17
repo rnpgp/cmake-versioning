@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020 Ribose Inc.
+# Copyright (c) 2018 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -75,58 +75,20 @@ function(extract_version_info version var_prefix)
   set(${var_prefix}_VERSION_COMMIT_TIMESTAMP "${CMAKE_MATCH_7}" PARENT_SCOPE) # 1546836556
 endfunction()
 
-function(latest_release var_name)
-  # list tags
-  git(taglist tag --list v[0-9]*)
-  # convert to a cmake list
-  string(REGEX REPLACE ";" "\\\\;" taglist "${taglist}")
-  string(REGEX REPLACE "\n" ";" taglist "${taglist}")
-  set(version "0.0.0")
-  list(LENGTH taglist len)
-  if (NOT len EQUAL 0)
-    # figure out the semantically greatest version
-    foreach (tag ${taglist})
-      string(SUBSTRING "${tag}" 1 -1 tag)
-      if (tag VERSION_GREATER version)
-        set(version "${tag}")
-      endif()
-    endforeach()
-  endif()
-  set(${var_name} "v${version}" PARENT_SCOPE)
-endfunction()
-
-function(current_branch var_name)
-  _git(${var_name} symbolic-ref -q --short HEAD)
-  if (NOT _git_ec EQUAL 0)
-    # workaround detached HEAD in CI
-    if (DEFINED ENV{VERSION_OVERRIDE_BRANCH})
-      set(${var_name} "$ENV{VERSION_OVERRIDE_BRANCH}")
-    else()
-      message(FATAL_ERROR "Unable to determine branch")
-    endif()
-  endif()
-  set(${var_name} "${${var_name}}" PARENT_SCOPE)
-endfunction()
-
 function(determine_version source_dir var_prefix)
   if (EXISTS "${source_dir}/.git")
     # for GIT_EXECUTABLE
     find_package(Git REQUIRED)
-    current_branch(branch)
-    set(tag "v0.0.0")
-    if (branch STREQUAL "master")
-      latest_release(tag)
-    endif()
     # get a description of the version, something like:
     #   v1.9.1-0-g38ffe82        (a tagged release)
     #   v1.9.1-0-g38ffe82-dirty  (a tagged release with local modifications)
     #   v1.9.0-3-g5b92266        (post-release snapshot)
     #   v1.9.0-3-g5b92266-dirty  (post-release snapshot with local modifications)
     _git(version describe --abbrev=${GIT_REV_LEN} --match "v[0-9]*" --long --dirty)
-    if (NOT _git_ec EQUAL 0 OR branch STREQUAL "master")
+    if (NOT _git_ec EQUAL 0)
       # no annotated tags, fake one
       git(revision rev-parse --short=${GIT_REV_LEN} --verify HEAD)
-      set(version "${tag}-0-g${revision}")
+      set(version "v0.0.0-0-g${revision}")
       # check if dirty (this won't detect untracked files, but should be ok)
       _git(changes diff-index --quiet HEAD --)
       if (NOT _git_ec EQUAL 0)
@@ -160,8 +122,7 @@ function(determine_version source_dir var_prefix)
   # | no tag           | 0.0.0+git20180604.2ee02af   |
   string(TIMESTAMP date "%Y%m%d" UTC)
   set(version_suffix "")
-  if ((NOT ${local_prefix}_VERSION_NCOMMITS EQUAL 0) OR (${local_prefix}_VERSION STREQUAL "0.0.0")
-      OR branch STREQUAL "master")
+  if ((NOT ${local_prefix}_VERSION_NCOMMITS EQUAL 0) OR (${local_prefix}_VERSION STREQUAL "0.0.0"))
     # 0.9.0+git20150604.4.289818b
     string(APPEND version_suffix "+git${date}")
     if (NOT ${local_prefix}_VERSION_NCOMMITS EQUAL 0)
