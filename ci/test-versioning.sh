@@ -48,6 +48,12 @@ expect_version \
 
 # exact tag
 git checkout -b release/0.x
+# diverge from master
+echo > release
+git add release
+git commit -m .
+sha=$(git rev-parse --short=7 --verify HEAD)
+# tag
 git tag -a v0.9.0 -m ''
 expect_version \
   '0\.9\.0' \
@@ -110,13 +116,13 @@ git tag -a v0.12.0 -m ''
 git checkout master
 sha=$(git rev-parse --short=7 --verify HEAD)
 expect_version \
-  '1\.0\.0' \
+  '0\.0\.0' \
   '0' \
   "$sha" \
   'FALSE' \
   '[[:digit:]]{10}' \
   '\+git[[:digit:]]{8}.'"$sha" \
-  '1\.0\.0\+git[[:digit:]]{8}.'"$sha"
+  '0\.0\.0\+git[[:digit:]]{8}.'"$sha"
 
 # version.txt
 cd "$(mktemp --tmpdir -d rnp-cmake-version.XXXXXX)"
