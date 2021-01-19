@@ -76,7 +76,10 @@ function(extract_version_info version var_prefix)
 endfunction()
 
 function(determine_version source_dir var_prefix)
-  if (EXISTS "${source_dir}/.git")
+  if (EXISTS "${source_dir}/version.txt")
+    # same as below, but used for snapshots
+    file(STRINGS "${source_dir}/version.txt" version)
+  else()
     # for GIT_EXECUTABLE
     find_package(Git REQUIRED)
     # get a description of the version, something like:
@@ -99,9 +102,6 @@ function(determine_version source_dir var_prefix)
       git(commit_timestamp show -s --format=%ct)
       string(APPEND version "+${commit_timestamp}")
     endif()
-  else()
-    # same as above, but used for snapshots
-    file(STRINGS "${source_dir}/version.txt" version)
   endif()
   set(local_prefix "_determine_ver")
   extract_version_info("${version}" "${local_prefix}")
