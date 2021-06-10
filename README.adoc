@@ -1,0 +1,37 @@
+= CMake module for software versioning using Git
+
+== Purpose
+
+The `version.cmake` CMake module provides a mechanism to build a
+version tag via Git.
+
+== Behavior
+
+
+. If a `version.txt` exists at the base directory (CMake base directory),
+  it will be used as a base version.
+. Then, if a git tag in a semantic version format exists (`{major}.{minor}.{patch}`),
+  the latest git tag will be used to update the base version.
+
+For example, on `master` or any other branch, after building via CMake,
+the version would be `v0.15.0+something` (given that `version.txt` starts from `0.15.0`)
+instead of `v0.0.0+something`.
+
+
+This module produces tags like these:
+
+* no git tag: `0.0.0+gitg24cc43a`
+
+* git tag `v0.9.0` but diverged from `master`: `0.9.0`
+* git tag `v0.9.0` but dirty: `0.9.0+gitg24cc43a`
+* git tag `v0.9.0` but committed after tag: `v0.9.0.1-g24cc43a`
+* git tag `v0.9.0` but committed after tag, dirty: `v0.9.0.1-g24cc43a-dirty`
+
+* `v0.9.0-1-g24cc43a`: `version.txt` is 0.9.0, and git commit at `g24cc43a`.
+* if repository dirty: `v0.9.0-1-g24cc43a-dirty`
+
+* have `version.txt`, git commits, but no release tags: `0.15.1+git20210101.g24cc43a`
+
+== Credits
+
+Copyright Ribose.
