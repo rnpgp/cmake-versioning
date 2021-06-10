@@ -8,17 +8,29 @@ include(version)
 determine_version("${CMAKE_CURRENT_SOURCE_DIR}" RNP)
 '
 
+_mktemp() {
+    local base=${1:-/tmp}
+    if [[ $(uname) = Darwin ]]; then mktemp -d $base/rnp-cmake-version.XXXXXXXXXX
+    else TMPDIR="$base" mktemp -d -t rnp-cmake-version.XXXXXXXXXX
+    fi
+}
+
 expect_version() {
   [[ $# -eq 7 ]] || exit 1
-  output=$(mktemp --tmpdir rnp-cmake-version.XXXXXX)
+  output=$(_mktemp)/output
   cmake -DCMAKE_MODULE_PATH="$modules" -P /dev/stdin <<<"$script" > "$output"
   cat "$output"
 
-  for var in RNP_VERSION RNP_VERSION_NCOMMITS RNP_VERSION_GIT_REV \
-             RNP_VERSION_IS_DIRTY RNP_VERSION_COMMIT_TIMESTAMP \
-             RNP_VERSION_SUFFIX RNP_VERSION_FULL; do
+  for var in RNP_VERSION \
+             RNP_VERSION_NCOMMITS \
+             RNP_VERSION_GIT_REV \
+             RNP_VERSION_IS_DIRTY \
+             RNP_VERSION_COMMIT_TIMESTAMP \
+             RNP_VERSION_SUFFIX \
+             RNP_VERSION_FULL;
+  do
     value=$(grep -F "$var: " "$output" | cut -d : -f 2- | cut -c 2-)
-    if ! echo "$value" | grep -qP "^$1$"; then
+    if [[ $(echo "$value" | sed "s/^$1$/XX/g") != 'XX' ]] ; then
       echo "FAILURE: $var expected $1, but found $value"
       exit 1
     fi
@@ -26,7 +38,9 @@ expect_version() {
   done
 }
 
-cd "$(mktemp --tmpdir -d rnp-cmake-version.XXXXXX)"
+TDIR=$(_mktemp)
+cd ${TDIR}
+
 git init
 git config --local user.email 'test@example.com'
 git config --local user.name 'test'
@@ -42,9 +56,9 @@ expect_version \
   '0' \
   "$sha" \
   'FALSE' \
-  '[[:digit:]]{10}' \
-  '\+git[[:digit:]]{8}.'"$sha" \
-  '0\.0\.0\+git[[:digit:]]{8}.'"$sha"
+  '[[:digit:]]\{10\}' \
+  '+git[[:digit:]]\{8\}.'"$sha" \
+  '0\.0\.0+git[[:digit:]]\{8\}.'"$sha"
 
 # exact tag
 git checkout -b release/0.x
@@ -71,8 +85,8 @@ expect_version \
   "$sha" \
   'TRUE' \
   '0' \
-  '\+git[[:digit:]]{8}' \
-  '0\.9\.0\+git[[:digit:]]{8}'
+  '+git[[:digit:]]\{8\}' \
+  '0\.9\.0+git[[:digit:]]\{8\}'
 # after tag
 git add file1
 git commit -m .
@@ -83,8 +97,8 @@ expect_version \
   "$sha" \
   'FALSE' \
   '0' \
-  '\+git[[:digit:]]{8}.1.'"$sha" \
-  '0\.9\.0\+git[[:digit:]]{8}.1.'"$sha"
+  '+git[[:digit:]]\{8\}.1.'"$sha" \
+  '0\.9\.0+git[[:digit:]]\{8\}.1.'"$sha"
 # after tag, dirty
 echo >> file1
 expect_version \
@@ -93,8 +107,8 @@ expect_version \
   "$sha" \
   'TRUE' \
   '0' \
-  '\+git[[:digit:]]{8}.1.'"$sha" \
-  '0\.9\.0\+git[[:digit:]]{8}.1.'"$sha"
+  '+git[[:digit:]]\{8\}.1.'"$sha" \
+  '0\.9\.0+git[[:digit:]]\{8\}.1.'"$sha"
 # master
 # add a few tags
 echo >> file1
@@ -120,12 +134,12 @@ expect_version \
   '0' \
   "$sha" \
   'FALSE' \
-  '[[:digit:]]{10}' \
-  '\+git[[:digit:]]{8}.'"$sha" \
-  '0\.0\.0\+git[[:digit:]]{8}.'"$sha"
+  '[[:digit:]]\{10\}' \
+  '+git[[:digit:]]\{8\}.'"$sha" \
+  '0\.0\.0+git[[:digit:]]\{8\}.'"$sha"
 
 # version.txt
-cd "$(mktemp --tmpdir -d rnp-cmake-version.XXXXXX)"
+cd "$(_mktemp)"
 # no tags
 echo 'v0.0.0-0-g3bcf934+1579104076' > version.txt
 expect_version \
@@ -134,8 +148,8 @@ expect_version \
   "3bcf934" \
   'FALSE' \
   '1579104076' \
-  '\+git[[:digit:]]{8}.3bcf934' \
-  '0\.0\.0\+git[[:digit:]]{8}.3bcf934'
+  '+git[[:digit:]]\{8\}.3bcf934' \
+  '0\.0\.0+git[[:digit:]]\{8\}.3bcf934'
 # exact tag
 echo 'v0.9.0-0-g6db3cc7' > version.txt
 expect_version \
@@ -154,8 +168,8 @@ expect_version \
   '6db3cc7' \
   'TRUE' \
   '0' \
-  '\+git[[:digit:]]{8}' \
-  '0\.9\.0\+git[[:digit:]]{8}'
+  '+git[[:digit:]]\{8\}' \
+  '0\.9\.0+git[[:digit:]]\{8\}'
 # after tag
 echo 'v0.9.0-1-g24cc43a' > version.txt
 expect_version \
@@ -164,8 +178,8 @@ expect_version \
   '24cc43a' \
   'FALSE' \
   '0' \
-  '\+git[[:digit:]]{8}\.1\.24cc43a' \
-  '0\.9\.0\+git[[:digit:]]{8}\.1\.24cc43a'
+  '+git[[:digit:]]\{8\}\.1\.24cc43a' \
+  '0\.9\.0+git[[:digit:]]\{8\}\.1\.24cc43a'
 # after tag, dirty
 echo 'v0.9.0-1-g24cc43a-dirty' > version.txt
 expect_version \
@@ -174,11 +188,11 @@ expect_version \
   '24cc43a' \
   'TRUE' \
   '0' \
-  '\+git[[:digit:]]{8}\.1\.24cc43a' \
-  '0\.9\.0\+git[[:digit:]]{8}\.1\.24cc43a'
+  '+git[[:digit:]]\{8\}\.1\.24cc43a' \
+  '0\.9\.0+git[[:digit:]]\{8\}\.1\.24cc43a'
 
 # we have version.txt, git commits, but no release tags
-cd "$(mktemp --tmpdir -d rnp-cmake-version.XXXXXX)"
+cd "$(_mktemp)"
 git init
 git config --local user.email 'test@example.com'
 git config --local user.name 'test'
@@ -196,6 +210,6 @@ expect_version \
   '0' \
   "$sha" \
   'FALSE' \
-  '[[:digit:]]{10}' \
-  '\+git[[:digit:]]{8}.'"$sha" \
-  '0\.15\.1\+git[[:digit:]]{8}.'"$sha"
+  '[[:digit:]]\{10\}' \
+  '+git[[:digit:]]\{8\}.'"$sha" \
+  '0\.15\.1+git[[:digit:]]\{8\}.'"$sha"
