@@ -213,3 +213,27 @@ expect_version \
   '[[:digit:]]\{10\}' \
   '+git[[:digit:]]\{8\}.'"$sha" \
   '0\.15\.1+git[[:digit:]]\{8\}.'"$sha"
+
+# we have version.txt with version later then the latest tag
+cd "$(_mktemp)"
+git init
+git config --local user.email 'test@example.com'
+git config --local user.name 'test'
+
+echo 'hello' > world.txt
+git add world.txt
+git commit -m .
+git tag 'v0.15.1'
+echo 'v0.15.2' > version.txt
+git add version.txt
+git commit -m .
+sha=$(git rev-parse --short=7 --verify HEAD)
+
+expect_version \
+  '0\.15\.2' \
+  '0' \
+  "$sha" \
+  'FALSE' \
+  '[[:digit:]]\{10\}' \
+  '+git[[:digit:]]\{8\}.'"$sha" \
+  '0\.15\.2+git[[:digit:]]\{8\}.'"$sha"
